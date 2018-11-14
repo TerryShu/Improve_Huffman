@@ -40,7 +40,7 @@ static void shift_up_2(min_heap_t *heap) {
 static void add_to_heap(node_t *to, min_heap_t *heap) {
   int pos = heap->size++;
   heap->array[pos] = to;
-  if (heap->size > 2) {
+  if (heap->size > 1) {
     while ((heap->array[pos - 1])->weight > (heap->array[pos])->weight) {
       swap_node(&(heap->array[pos - 1]), &(heap->array[pos]));
       if (--pos == 0)
@@ -74,7 +74,7 @@ void encode(FILE *in, FILE *out, pair_t *pairs) {
     if (ch == EOF)
       break;
     int i = 0;
-    while (i++ < pairs[ch].length) {
+    while (i < pairs[ch].length) {
       buffer <<= 1;
       buffer += (pairs[ch].arr)[i];
       curr_size++;
@@ -83,6 +83,7 @@ void encode(FILE *in, FILE *out, pair_t *pairs) {
         curr_size = 0;
         buffer = 0;
       }
+      i++;
     }
   }
 
