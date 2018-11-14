@@ -1,8 +1,10 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define ASCII_SIZE 128
+#define ASCII_EOF 3
 
 typedef struct _node {
   struct _node *left, *right;
@@ -87,6 +89,19 @@ void encode(FILE *in, FILE *out, pair_t *pairs) {
     }
   }
 
+  int i = 0;
+  while (i < pairs[ASCII_EOF].length) {
+    buffer <<= 1;
+    buffer += (pairs[ASCII_EOF].arr)[i];
+    curr_size++;
+    if (curr_size == 8) {
+      fwrite(&buffer, 1, 1, out);
+      curr_size = 0;
+      buffer = 0;
+    }
+    i++;
+  } // add EOF in the end
+
   while (curr_size < 8) {
     buffer <<= 1;
     curr_size++;
@@ -95,6 +110,43 @@ void encode(FILE *in, FILE *out, pair_t *pairs) {
   rewind(in);
   fwrite(&buffer, 1, 1, out);
   fclose(out);
+}
+
+void decode(FILE *in, min_heap_t *heap) {
+  unsigned char buffer;
+  long filelen;
+  fseek(in, 0, SEEK_END); // Jump to the end of the file
+  filelen = ftell(in);    // Get the current byte offset in the file
+  rewind(in);             // Jump back to the beginning of the file
+
+  node_t *root = heap->array[0];
+  node_t *temp = root;
+  bool stop = false;
+  printf("Decoding...\nPlaintext:\n");
+  for (int i = 0; i < filelen; i++) {
+    fread(&buffer, 1, 1, in); // Read in the entire file
+    for (int j = 0; j < 8; j++) {
+      unsigned first_bit = buffer >> 7;
+      buffer <<= 1;
+      if (first_bit)
+        temp = temp->right;
+      else
+        temp = temp->left;
+
+      if (((int)temp->data)) {
+        if (((int)temp->data) == ASCII_EOF) {
+          stop = true;
+          break;
+        }
+        printf("%c", temp->data);
+        temp = root;
+      }
+    }
+    if (stop) {
+      printf("\n");
+      break;
+    }
+  }
 }
 
 void build_pairings(node_t *root, int arr[], int top, pair_t *pairs) {
@@ -126,6 +178,7 @@ min_heap_t *scan_file(FILE *in) {
       break;
     dictionary[ch].weight++;
   }
+  dictionary[ASCII_EOF].weight++; // add an EOF node
 
   for (ch = 0; ch < ASCII_SIZE; ch++) {
     if (dictionary[ch].weight == 0)
@@ -155,6 +208,7 @@ int main(int argc, char *argv[]) {
   encode(in, out, pairs);
 
   FILE *read_out = fopen("out", "r");
+  decode(read_out, data_heap);
   fseek(in, 0L, SEEK_END);
   fseek(read_out, 0L, SEEK_END);
   int before = ftell(in);
